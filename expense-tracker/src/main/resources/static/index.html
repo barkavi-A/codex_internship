@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Personal Finance and Expense Tracker with analytics, budget alerts, and data export.">
+    <title>Expense Tracker - Smart Personal Finance</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Toast notification container -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <!-- AUTH SECTION -->
+    <div id="auth-section" class="auth-wrapper">
+        <div class="auth-container">
+            <div class="auth-header">
+                <div class="brand-logo">
+                    <span class="brand-icon">₹</span>
+                    <span class="brand-name">FinTrack</span>
+                </div>
+                <h1 class="auth-title" id="auth-heading">Welcome Back</h1>
+                <p class="auth-subtitle" id="auth-subheading">Track your expenses, manage budgets, and save smarter.</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form" novalidate>
+                <div class="form-group">
+                    <label for="login-email">Email Address</label>
+                    <input type="email" id="login-email" required placeholder="name@example.com" autocomplete="username">
+                    <span class="field-error" id="login-email-error"></span>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
+                    <span class="field-error" id="login-password-error"></span>
+                </div>
+                <button type="submit" id="login-btn" class="btn btn-primary btn-block">Sign In</button>
+                <div class="auth-switch">
+                    <span>Don't have an account?</span>
+                    <button type="button" id="switch-to-register-btn" class="btn-link">Create Account</button>
+                </div>
+                <div class="demo-quick-login">
+                    <span>Quick Test:</span>
+                    <button type="button" id="demo-fill-btn" class="btn-link-demo">Fill Demo User</button>
+                </div>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form hidden" novalidate>
+                <div class="form-group">
+                    <label for="reg-name">Full Name</label>
+                    <input type="text" id="reg-name" required placeholder="John Doe">
+                    <span class="field-error" id="reg-name-error"></span>
+                </div>
+                <div class="form-group">
+                    <label for="reg-email">Email Address</label>
+                    <input type="email" id="reg-email" required placeholder="name@example.com" autocomplete="username">
+                    <span class="field-error" id="reg-email-error"></span>
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Password (min 8 chars, letter + digit)</label>
+                    <input type="password" id="reg-password" required placeholder="••••••••" autocomplete="new-password">
+                    <span class="field-error" id="reg-password-error"></span>
+                </div>
+                <div class="form-group">
+                    <label for="reg-currency">Currency Symbol / Code</label>
+                    <select id="reg-currency">
+                        <option value="INR" selected>INR (₹)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                    </select>
+                </div>
+                <button type="submit" id="register-btn" class="btn btn-primary btn-block">Create Account</button>
+                <div class="auth-switch">
+                    <span>Already have an account?</span>
+                    <button type="button" id="switch-to-login-btn" class="btn-link">Sign In</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP SECTION -->
+    <div id="app-section" class="app-layout hidden">
+        <!-- Navigation Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="brand-logo">
+                    <span class="brand-icon">₹</span>
+                    <span class="brand-name">FinTrack</span>
+                </div>
+                <nav class="nav-tabs">
+                    <button type="button" class="nav-tab active" id="tab-dashboard" data-tab="dashboard">Dashboard</button>
+                    <button type="button" class="nav-tab" id="tab-transactions" data-tab="transactions">Transactions</button>
+                    <button type="button" class="nav-tab" id="tab-categories" data-tab="categories">Categories</button>
+                    <button type="button" class="nav-tab" id="tab-budgets" data-tab="budgets">Budgets</button>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div class="user-badge" id="user-badge">
+                    <span class="user-avatar" id="user-avatar">U</span>
+                    <div class="user-meta">
+                        <span class="user-name" id="user-name-display">User</span>
+                        <span class="user-currency" id="user-currency-display">INR</span>
+                    </div>
+                </div>
+                <a href="/swagger-ui.html" target="_blank" class="btn btn-outline btn-sm" id="swagger-link" title="Open API Documentation">API Docs</a>
+                <button type="button" id="logout-btn" class="btn btn-danger btn-sm">Log Out</button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="app-content">
+            <!-- 1. DASHBOARD VIEW -->
+            <section id="view-dashboard" class="content-view active">
+                <div class="view-header">
+                    <div>
+                        <h2>Financial Overview</h2>
+                        <p class="text-muted">Real-time breakdown of your income, expenses, and savings rate</p>
+                    </div>
+                    <div class="date-filter-group">
+                        <label for="dash-from">From:</label>
+                        <input type="date" id="dash-from">
+                        <label for="dash-to">To:</label>
+                        <input type="date" id="dash-to">
+                        <button type="button" id="dash-apply-btn" class="btn btn-primary btn-sm">Apply</button>
+                        <button type="button" id="dash-reset-btn" class="btn btn-outline btn-sm">This Month</button>
+                    </div>
+                </div>
+
+                <!-- Metric Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card stat-income">
+                        <div class="stat-header">
+                            <span class="stat-title">Total Income</span>
+                            <span class="stat-badge income">Income</span>
+                        </div>
+                        <div class="stat-value" id="stat-income-val">₹0.00</div>
+                        <div class="stat-sub" id="stat-count-val">0 transactions</div>
+                    </div>
+                    <div class="stat-card stat-expense">
+                        <div class="stat-header">
+                            <span class="stat-title">Total Expense</span>
+                            <span class="stat-badge expense">Expense</span>
+                        </div>
+                        <div class="stat-value" id="stat-expense-val">₹0.00</div>
+                        <div class="stat-sub" id="stat-daily-avg-val">Avg daily: ₹0.00</div>
+                    </div>
+                    <div class="stat-card stat-net">
+                        <div class="stat-header">
+                            <span class="stat-title">Net Savings</span>
+                            <span class="stat-badge net">Net</span>
+                        </div>
+                        <div class="stat-value" id="stat-net-val">₹0.00</div>
+                        <div class="stat-sub" id="stat-highest-expense-val">Peak expense: ₹0.00</div>
+                    </div>
+                    <div class="stat-card stat-rate">
+                        <div class="stat-header">
+                            <span class="stat-title">Savings Rate</span>
+                            <span class="stat-badge rate">Rate</span>
+                        </div>
+                        <div class="stat-value" id="stat-rate-val">0.00%</div>
+                        <div class="stat-sub">Target: &gt; 20%</div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-grid">
+                    <div class="card chart-card">
+                        <div class="card-header">
+                            <h3>Expenses by Category</h3>
+                            <span class="card-subtitle">Distribution across categories</span>
+                        </div>
+                        <div class="canvas-wrapper">
+                            <canvas id="categoryCanvas" width="340" height="340"></canvas>
+                        </div>
+                        <div id="category-legend" class="chart-legend"></div>
+                    </div>
+
+                    <div class="card chart-card">
+                        <div class="card-header">
+                            <h3>Monthly Trend</h3>
+                            <span class="card-subtitle">Income vs Expenses (12 months)</span>
+                        </div>
+                        <div class="canvas-wrapper">
+                            <canvas id="monthlyCanvas" width="560" height="340"></canvas>
+                        </div>
+                        <div class="monthly-legend">
+                            <span class="legend-indicator" style="background:#10B981;"></span> Income
+                            <span class="legend-indicator" style="background:#EF4444; margin-left: 1rem;"></span> Expense
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Budgets Preview -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Monthly Budget Progress</h3>
+                        <span class="card-subtitle" id="dash-budget-month-label">Current Month</span>
+                    </div>
+                    <div id="dash-budget-progress-container" class="budget-progress-list">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. TRANSACTIONS VIEW -->
+            <section id="view-transactions" class="content-view">
+                <div class="view-header">
+                    <div>
+                        <h2>Transactions</h2>
+                        <p class="text-muted">Manage, filter, and inspect your financial records</p>
+                    </div>
+                    <div class="view-actions">
+                        <button type="button" id="export-csv-btn" class="btn btn-outline">Download CSV</button>
+                        <button type="button" id="add-transaction-modal-btn" class="btn btn-primary">+ Add Transaction</button>
+                    </div>
+                </div>
+
+                <!-- Filter Controls -->
+                <div class="filter-card">
+                    <div class="filter-grid">
+                        <div class="filter-group">
+                            <label for="filter-search">Search</label>
+                            <input type="text" id="filter-search" placeholder="Search description...">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-type">Type</label>
+                            <select id="filter-type">
+                                <option value="">All Types</option>
+                                <option value="INCOME">Income</option>
+                                <option value="EXPENSE">Expense</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-category">Category</label>
+                            <select id="filter-category">
+                                <option value="">All Categories</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-payment">Payment</label>
+                            <select id="filter-payment">
+                                <option value="">All Methods</option>
+                                <option value="CASH">Cash</option>
+                                <option value="CARD">Card</option>
+                                <option value="UPI">UPI</option>
+                                <option value="BANK_TRANSFER">Bank Transfer</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-from">From</label>
+                            <input type="date" id="filter-from">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-to">To</label>
+                            <input type="date" id="filter-to">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-min">Min Amount</label>
+                            <input type="number" id="filter-min" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-max">Max Amount</label>
+                            <input type="number" id="filter-max" step="0.01" min="0" placeholder="Max">
+                        </div>
+                    </div>
+                    <div class="filter-footer">
+                        <button type="button" id="apply-filters-btn" class="btn btn-primary btn-sm">Filter</button>
+                        <button type="button" id="reset-filters-btn" class="btn btn-outline btn-sm">Reset</button>
+                    </div>
+                </div>
+
+                <!-- Transactions Table -->
+                <div class="table-responsive card">
+                    <table class="data-table" id="transactions-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Method</th>
+                                <th>Type</th>
+                                <th class="text-right">Amount</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-tbody">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                    <div id="transactions-empty" class="empty-state hidden">No transactions found matching criteria.</div>
+                    
+                    <!-- Pagination Bar -->
+                    <div class="pagination-bar">
+                        <div class="pagination-info" id="pagination-info">Showing 0 of 0</div>
+                        <div class="pagination-controls">
+                            <button type="button" id="prev-page-btn" class="btn btn-outline btn-sm" disabled>Previous</button>
+                            <span id="page-num-display" class="page-indicator">Page 1</span>
+                            <button type="button" id="next-page-btn" class="btn btn-outline btn-sm" disabled>Next</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. CATEGORIES VIEW -->
+            <section id="view-categories" class="content-view">
+                <div class="view-header">
+                    <div>
+                        <h2>Categories</h2>
+                        <p class="text-muted">Global default categories and your customized budget categories</p>
+                    </div>
+                    <button type="button" id="add-category-modal-btn" class="btn btn-primary">+ Add Category</button>
+                </div>
+
+                <div class="card">
+                    <div class="categories-grid" id="categories-container">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. BUDGETS VIEW -->
+            <section id="view-budgets" class="content-view">
+                <div class="view-header">
+                    <div>
+                        <h2>Monthly Budgets</h2>
+                        <p class="text-muted">Set spending limits and receive warnings when approaching thresholds</p>
+                    </div>
+                    <div class="view-actions">
+                        <input type="month" id="budget-month-picker" class="month-input">
+                        <button type="button" id="add-budget-modal-btn" class="btn btn-primary">+ Set Budget</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Budget Utilization Status</h3>
+                        <span class="card-subtitle" id="budget-status-month-title">Status Report</span>
+                    </div>
+                    <div class="budgets-status-grid" id="budgets-status-container">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- Transaction Modal (Create / Edit) -->
+    <div id="transaction-modal" class="modal-backdrop hidden">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 id="tx-modal-title">Add Transaction</h3>
+                <button type="button" class="modal-close-btn" id="close-tx-modal">&times;</button>
+            </div>
+            <form id="transaction-form" novalidate>
+                <input type="hidden" id="tx-id">
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="tx-type">Transaction Type</label>
+                        <select id="tx-type" required>
+                            <option value="EXPENSE">Expense</option>
+                            <option value="INCOME">Income</option>
+                        </select>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="tx-category">Category</label>
+                        <select id="tx-category" required></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="tx-amount">Amount</label>
+                        <input type="number" id="tx-amount" step="0.01" min="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="tx-date">Date</label>
+                        <input type="date" id="tx-date" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="tx-payment">Payment Method</label>
+                        <select id="tx-payment" required>
+                            <option value="UPI">UPI</option>
+                            <option value="CARD">Card</option>
+                            <option value="CASH">Cash</option>
+                            <option value="BANK_TRANSFER">Bank Transfer</option>
+                            <option value="OTHER">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="tx-description">Description</label>
+                        <input type="text" id="tx-description" maxlength="255" required placeholder="e.g. Grocery shopping">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="tx-notes">Notes (optional)</label>
+                    <textarea id="tx-notes" rows="2" placeholder="Additional details..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="cancel-tx-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="save-tx-btn">Save Transaction</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Category Modal (Create / Edit) -->
+    <div id="category-modal" class="modal-backdrop hidden">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 id="cat-modal-title">Add Category</h3>
+                <button type="button" class="modal-close-btn" id="close-cat-modal">&times;</button>
+            </div>
+            <form id="category-form" novalidate>
+                <input type="hidden" id="cat-id">
+                <div class="form-group">
+                    <label for="cat-name">Category Name</label>
+                    <input type="text" id="cat-name" maxlength="100" required placeholder="e.g. Subscriptions">
+                </div>
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="cat-type">Type</label>
+                        <select id="cat-type" required>
+                            <option value="EXPENSE">Expense</option>
+                            <option value="INCOME">Income</option>
+                        </select>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="cat-color">Color</label>
+                        <input type="color" id="cat-color" value="#3B82F6">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="cat-icon">Icon Keyword</label>
+                    <input type="text" id="cat-icon" maxlength="50" placeholder="e.g. tag, shopping-bag, coffee">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="cancel-cat-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="save-cat-btn">Save Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Budget Modal (Create / Edit) -->
+    <div id="budget-modal" class="modal-backdrop hidden">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 id="budget-modal-title">Set Monthly Budget</h3>
+                <button type="button" class="modal-close-btn" id="close-budget-modal">&times;</button>
+            </div>
+            <form id="budget-form" novalidate>
+                <input type="hidden" id="budget-id">
+                <div class="form-group">
+                    <label for="budget-month">Month (YYYY-MM)</label>
+                    <input type="month" id="budget-month" required>
+                </div>
+                <div class="form-group">
+                    <label for="budget-category">Category (Leave empty for Overall Monthly Budget)</label>
+                    <select id="budget-category">
+                        <option value="">Overall Monthly Budget</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="budget-limit">Limit Amount</label>
+                    <input type="number" id="budget-limit" step="0.01" min="0.01" required placeholder="10000.00">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="cancel-budget-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="save-budget-btn">Save Budget</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
