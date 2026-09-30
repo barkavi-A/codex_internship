@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener - Multi-User Analytics Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="app-header">
+        <a href="index.html" class="brand">
+            <div class="brand-icon">⚡</div>
+            <span>Shortener Service</span>
+        </a>
+        <nav class="nav-links">
+            <a href="dashboard.html" class="nav-link">Dashboard</a>
+            <a href="link.html" class="nav-link">My Links</a>
+            <div id="user-nav"></div>
+        </nav>
+    </header>
+
+    <div class="container auth-wrapper">
+        <div class="panel auth-card">
+            <div id="auth-header">
+                <h2 style="font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem;" id="form-title">Welcome Back</h2>
+                <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;" id="form-subtitle">Log in to manage your short links and view analytics</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-email">Email Address</label>
+                    <input type="email" id="login-email" required placeholder="user@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Log In</button>
+                <p style="text-align: center; margin-top: 1.25rem; font-size: 0.875rem; color: var(--text-secondary);">
+                    Don't have an account? <a href="#" id="toggle-to-register" style="color: var(--accent-blue);">Register</a>
+                </p>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" style="display: none;">
+                <div class="form-group">
+                    <label for="reg-name">Full Name</label>
+                    <input type="text" id="reg-name" required placeholder="Jane Doe">
+                </div>
+                <div class="form-group">
+                    <label for="reg-email">Email Address</label>
+                    <input type="email" id="reg-email" required placeholder="user@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Password (min 8 chars, 1 letter, 1 number)</label>
+                    <input type="password" id="reg-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Create Account</button>
+                <p style="text-align: center; margin-top: 1.25rem; font-size: 0.875rem; color: var(--text-secondary);">
+                    Already have an account? <a href="#" id="toggle-to-login" style="color: var(--accent-blue);">Log In</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (App.token) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const toggleReg = document.getElementById('toggle-to-register');
+            const toggleLogin = document.getElementById('toggle-to-login');
+            const formTitle = document.getElementById('form-title');
+            const formSubtitle = document.getElementById('form-subtitle');
+
+            toggleReg.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+                formTitle.textContent = 'Create an Account';
+                formSubtitle.textContent = 'Start shortening links with detailed click tracking';
+            });
+
+            toggleLogin.addEventListener('click', (e) => {
+                e.preventDefault();
+                registerForm.style.display = 'none';
+                loginForm.style.display = 'block';
+                formTitle.textContent = 'Welcome Back';
+                formSubtitle.textContent = 'Log in to manage your short links and view analytics';
+            });
+
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+
+                try {
+                    const res = await App.fetchApi('/api/auth/login', {
+                        method: 'POST',
+                        body: JSON.stringify({ email, password })
+                    });
+                    App.setSession(res.token, { id: res.userId, email: res.email, name: res.name });
+                    App.showToast('Login successful!');
+                    setTimeout(() => window.location.href = 'dashboard.html', 500);
+                } catch (err) {
+                    App.showToast(err.message, 'error');
+                }
+            });
+
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = document.getElementById('reg-name').value;
+                const email = document.getElementById('reg-email').value;
+                const password = document.getElementById('reg-password').value;
+
+                try {
+                    const res = await App.fetchApi('/api/auth/register', {
+                        method: 'POST',
+                        body: JSON.stringify({ name, email, password })
+                    });
+                    App.setSession(res.token, { id: res.userId, email: res.email, name: res.name });
+                    App.showToast('Registration successful!');
+                    setTimeout(() => window.location.href = 'dashboard.html', 500);
+                } catch (err) {
+                    App.showToast(err.message, 'error');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

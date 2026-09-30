@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - URL Shortener Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="app-header">
+        <a href="index.html" class="brand">
+            <div class="brand-icon">⚡</div>
+            <span>Shortener Service</span>
+        </a>
+        <nav class="nav-links">
+            <a href="dashboard.html" class="nav-link active">Dashboard</a>
+            <a href="link.html" class="nav-link">My Links</a>
+            <div id="user-nav"></div>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- Overview Stat Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">Total Short Links</span>
+                <span class="stat-value" id="stat-total-links">0</span>
+                <span class="stat-badge badge-success" id="stat-active-links">0 Active</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Total Link Clicks</span>
+                <span class="stat-value" id="stat-total-clicks">0</span>
+                <span class="stat-badge badge-success" id="stat-trend-badge">+0% vs prev</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Unique Visitors</span>
+                <span class="stat-value" id="stat-unique-visitors">0</span>
+                <span class="stat-label" style="font-size:0.75rem;">Hashed privacy protected</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Clicks Recorded Today</span>
+                <span class="stat-value" id="stat-clicks-today">0</span>
+                <span class="stat-badge badge-success">Live Tracking</span>
+            </div>
+        </div>
+
+        <!-- Clicks Over Time Line Chart Panel -->
+        <div class="panel">
+            <div class="panel-title">
+                <span>Click Performance Trend</span>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-secondary btn-sm" onclick="loadDashboardData(7)">7 Days</button>
+                    <button class="btn btn-secondary btn-sm" onclick="loadDashboardData(30)">30 Days</button>
+                    <button class="btn btn-secondary btn-sm" onclick="loadDashboardData(90)">90 Days</button>
+                </div>
+            </div>
+            <canvas id="overview-line-chart" height="260"></canvas>
+        </div>
+
+        <!-- Top Links Table & Breakdown Grid -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+            <div class="panel">
+                <div class="panel-title">Top Performing Short Links</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Short Code</th>
+                                <th>Title / Destination</th>
+                                <th>Clicks</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-links-tbody">
+                            <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Loading top links...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Device Breakdown</div>
+                <canvas id="device-doughnut-chart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!App.token) {
+                window.location.href = 'index.html';
+                return;
+            }
+            loadDashboardData(30);
+        });
+
+        async function loadDashboardData(days = 30) {
+            try {
+                const to = new Date().toISOString();
+                const fromDate = new Date();
+                fromDate.setDate(fromDate.getDate() - days);
+                const from = fromDate.toISOString();
+
+                // Fetch overview stats
+                const overview = await App.fetchApi(`/api/analytics/overview?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+
+                document.getElementById('stat-total-links').textContent = overview.totalLinks;
+                document.getElementById('stat-active-links').textContent = `${overview.activeLinks} Active`;
+                document.getElementById('stat-total-clicks').textContent = overview.totalClicks.toLocaleString();
+                document.getElementById('stat-unique-visitors').textContent = overview.uniqueVisitors.toLocaleString();
+                document.getElementById('stat-clicks-today').textContent = overview.clicksToday.toLocaleString();
+
+                const trendBadge = document.getElementById('stat-trend-badge');
+                if (overview.clickChangePercent >= 0) {
+                    trendBadge.textContent = `+${overview.clickChangePercent}% vs prev`;
+                    trendBadge.className = 'stat-badge badge-success';
+                } else {
+                    trendBadge.textContent = `${overview.clickChangePercent}% vs prev`;
+                    trendBadge.className = 'stat-badge badge-warning';
+                }
+
+                // Render Top Links Table
+                const tbody = document.getElementById('top-links-tbody');
+                if (!overview.topLinks || overview.topLinks.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No links available yet. Create one on "My Links" page!</td></tr>';
+                } else {
+                    tbody.innerHTML = overview.topLinks.map(link => `
+                        <tr>
+                            <td><a href="/${App.escapeHtml(link.shortCode)}" target="_blank" style="color: var(--accent-blue); font-weight: 600;">/${App.escapeHtml(link.shortCode)}</a></td>
+                            <td style="max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                <strong>${App.escapeHtml(link.title || 'Untitled')}</strong><br>
+                                <span style="font-size: 0.8rem; color: var(--text-secondary);">${App.escapeHtml(link.originalUrl)}</span>
+                            </td>
+                            <td><strong style="color: var(--accent-emerald);">${link.clicks.toLocaleString()}</strong></td>
+                            <td><a href="link.html?id=${link.linkId}" class="btn btn-secondary btn-sm">Analytics</a></td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Render Chart from first link if available or synthetic time series
+                if (overview.topLinks && overview.topLinks.length > 0) {
+                    const topLinkId = overview.topLinks[0].linkId;
+                    const linkAnalytics = await App.fetchApi(`/api/links/${topLinkId}/analytics?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&granularity=day`);
+                    const labels = linkAnalytics.timeSeries.map(p => p.bucketKey);
+                    const clicks = linkAnalytics.timeSeries.map(p => p.clicks);
+                    App.Charts.drawLineChart('overview-line-chart', labels, clicks);
+
+                    // Fetch device breakdown for top link
+                    const breakdown = await App.fetchApi(`/api/links/${topLinkId}/analytics/breakdown?dimension=device&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+                    App.Charts.drawDoughnutChart('device-doughnut-chart', breakdown.items);
+                } else {
+                    App.Charts.drawLineChart('overview-line-chart', [], []);
+                    App.Charts.drawDoughnutChart('device-doughnut-chart', []);
+                }
+
+            } catch (err) {
+                App.showToast(err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

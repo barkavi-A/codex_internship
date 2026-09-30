@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Short Links - URL Shortener Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="app-header">
+        <a href="index.html" class="brand">
+            <div class="brand-icon">⚡</div>
+            <span>Shortener Service</span>
+        </a>
+        <nav class="nav-links">
+            <a href="dashboard.html" class="nav-link">Dashboard</a>
+            <a href="link.html" class="nav-link active">My Links</a>
+            <div id="user-nav"></div>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- Create Link Panel -->
+        <div class="panel">
+            <div class="panel-title">Shorten a New URL</div>
+            <form id="create-link-form" style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 1rem; align-items: end;">
+                <div class="form-group" style="margin:0;">
+                    <label for="new-url">Destination URL *</label>
+                    <input type="url" id="new-url" required placeholder="https://example.com/long-destination-path">
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label for="new-alias">Custom Alias (optional)</label>
+                    <input type="text" id="new-alias" placeholder="my-custom-code">
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label for="new-title">Title (optional)</label>
+                    <input type="text" id="new-title" placeholder="My Campaign Link">
+                </div>
+                <button type="submit" class="btn">Shorten URL</button>
+            </form>
+        </div>
+
+        <!-- Links Table & Search Panel -->
+        <div class="panel">
+            <div class="panel-title">
+                <span>Manage Short Links</span>
+                <div style="display: flex; gap: 0.75rem;">
+                    <input type="text" id="search-input" placeholder="Search by title, code, URL..." style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                    <button onclick="loadLinks(0)" class="btn btn-secondary btn-sm">Search</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Short Code & URL</th>
+                            <th>Original Destination</th>
+                            <th>Clicks</th>
+                            <th>Active</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="links-tbody">
+                        <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading links...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                <span id="pagination-info" style="font-size: 0.85rem; color: var(--text-secondary);">Page 1</span>
+                <div>
+                    <button id="prev-page-btn" class="btn btn-secondary btn-sm" disabled>Previous</button>
+                    <button id="next-page-btn" class="btn btn-secondary btn-sm" disabled>Next</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Single Link Analytics Detail View (Shown if selected or via URL param) -->
+        <div class="panel" id="detail-panel" style="display: none;">
+            <div class="panel-title">
+                <span id="detail-title">Link Analytics</span>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-secondary btn-sm" onclick="exportCsv()">Export CSV</button>
+                    <button class="btn btn-secondary btn-sm" onclick="showQrModal()">QR Code</button>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+                <div>
+                    <canvas id="link-line-chart" height="240"></canvas>
+                </div>
+                <div>
+                    <canvas id="link-referrer-chart" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qr-modal" class="modal-overlay">
+        <div class="modal" style="text-align: center;">
+            <h3 style="margin-bottom: 1rem;">Link QR Code</h3>
+            <img id="qr-image" src="" alt="QR Code" style="border-radius: 8px; margin-bottom: 1rem; width: 200px; height: 200px;">
+            <div>
+                <a id="qr-download-btn" href="" download="qr-code.png" class="btn btn-sm">Download PNG</a>
+                <button onclick="closeQrModal()" class="btn btn-secondary btn-sm">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+    <script>
+        let currentPage = 0;
+        let activeLinkId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!App.token) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('id')) {
+                activeLinkId = parseInt(urlParams.get('id'));
+            }
+
+            loadLinks(0);
+
+            document.getElementById('create-link-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const url = document.getElementById('new-url').value;
+                const customAlias = document.getElementById('new-alias').value;
+                const title = document.getElementById('new-title').value;
+
+                try {
+                    const res = await App.fetchApi('/api/links', {
+                        method: 'POST',
+                        body: JSON.stringify({ url, customAlias, title })
+                    });
+                    App.showToast(`Short link created: /${res.shortCode}`);
+                    document.getElementById('create-link-form').reset();
+                    loadLinks(0);
+                } catch (err) {
+                    App.showToast(err.message, 'error');
+                }
+            });
+
+            document.getElementById('prev-page-btn').addEventListener('click', () => {
+                if (currentPage > 0) loadLinks(currentPage - 1);
+            });
+            document.getElementById('next-page-btn').addEventListener('click', () => {
+                loadLinks(currentPage + 1);
+            });
+        });
+
+        async function loadLinks(page = 0) {
+            currentPage = page;
+            const search = document.getElementById('search-input').value;
+            try {
+                const res = await App.fetchApi(`/api/links?page=${page}&size=10&search=${encodeURIComponent(search)}`);
+                const tbody = document.getElementById('links-tbody');
+
+                if (res.content.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No links found.</td></tr>';
+                } else {
+                    tbody.innerHTML = res.content.map(link => `
+                        <tr>
+                            <td>
+                                <a href="${App.escapeHtml(link.shortUrl)}" target="_blank" style="color: var(--accent-blue); font-weight: 600;">/${App.escapeHtml(link.shortCode)}</a>
+                                <button onclick="copyToClipboard('${App.escapeHtml(link.shortUrl)}')" class="btn btn-secondary btn-sm" style="padding: 2px 6px; font-size: 0.75rem; margin-left: 6px;">Copy</button>
+                            </td>
+                            <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                <strong>${App.escapeHtml(link.title || 'Untitled')}</strong><br>
+                                <span style="font-size: 0.8rem; color: var(--text-secondary);">${App.escapeHtml(link.originalUrl)}</span>
+                            </td>
+                            <td><strong style="color: var(--accent-emerald);">${link.clickCount.toLocaleString()}</strong></td>
+                            <td>
+                                <label class="switch">
+                                    <input type="checkbox" ${link.active ? 'checked' : ''} onchange="toggleLinkActive(${link.id}, this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </td>
+                            <td style="font-size: 0.8rem; color: var(--text-secondary);">${link.createdAt ? link.createdAt.substring(0, 10) : ''}</td>
+                            <td>
+                                <button onclick="loadLinkAnalytics(${link.id}, '${App.escapeHtml(link.shortCode)}')" class="btn btn-secondary btn-sm">Stats</button>
+                                <button onclick="deleteLink(${link.id})" class="btn btn-danger btn-sm">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    if (activeLinkId) {
+                        const found = res.content.find(l => l.id === activeLinkId);
+                        if (found) loadLinkAnalytics(found.id, found.shortCode);
+                    }
+                }
+
+                document.getElementById('pagination-info').textContent = `Page ${res.number + 1} of ${res.totalPages || 1}`;
+                document.getElementById('prev-page-btn').disabled = res.first;
+                document.getElementById('next-page-btn').disabled = res.last;
+
+            } catch (err) {
+                App.showToast(err.message, 'error');
+            }
+        }
+
+        async function toggleLinkActive(id, active) {
+            try {
+                await App.fetchApi(`/api/links/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ active })
+                });
+                App.showToast(`Link status updated to ${active ? 'Active' : 'Inactive'}`);
+            } catch (err) {
+                App.showToast(err.message, 'error');
+            }
+        }
+
+        async function deleteLink(id) {
+            if (!confirm('Are you sure you want to delete this short link?')) return;
+            try {
+                await App.fetchApi(`/api/links/${id}`, { method: 'DELETE' });
+                App.showToast('Link deleted');
+                loadLinks(currentPage);
+            } catch (err) {
+                App.showToast(err.message, 'error');
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                App.showToast('Short URL copied to clipboard!');
+            });
+        }
+
+        async function loadLinkAnalytics(id, code) {
+            activeLinkId = id;
+            document.getElementById('detail-panel').style.display = 'block';
+            document.getElementById('detail-title').textContent = `Analytics for /${code}`;
+
+            try {
+                const analytics = await App.fetchApi(`/api/links/${id}/analytics?granularity=day`);
+                const labels = analytics.timeSeries.map(p => p.bucketKey);
+                const clicks = analytics.timeSeries.map(p => p.clicks);
+                App.Charts.drawLineChart('link-line-chart', labels, clicks);
+
+                const referrers = await App.fetchApi(`/api/links/${id}/analytics/breakdown?dimension=referrer`);
+                App.Charts.drawDoughnutChart('link-referrer-chart', referrers.items);
+
+                document.getElementById('detail-panel').scrollIntoView({ behavior: 'smooth' });
+            } catch (err) {
+                App.showToast(err.message, 'error');
+            }
+        }
+
+        function showQrModal() {
+            if (!activeLinkId) return;
+            const img = document.getElementById('qr-image');
+            const downloadBtn = document.getElementById('qr-download-btn');
+            const qrUrl = `/api/links/${activeLinkId}/qr?size=256`;
+            
+            fetch(qrUrl, {
+                headers: { 'Authorization': `Bearer ${App.token}` }
+            }).then(res => res.blob()).then(blob => {
+                const objectUrl = URL.createObjectURL(blob);
+                img.src = objectUrl;
+                downloadBtn.href = objectUrl;
+                document.getElementById('qr-modal').classList.add('open');
+            });
+        }
+
+        function closeQrModal() {
+            document.getElementById('qr-modal').classList.remove('open');
+        }
+
+        function exportCsv() {
+            if (!activeLinkId) return;
+            fetch(`/api/links/${activeLinkId}/analytics/export?format=csv`, {
+                headers: { 'Authorization': `Bearer ${App.token}` }
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `link_${activeLinkId}_stats.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            });
+        }
+    </script>
+</body>
+</html>
